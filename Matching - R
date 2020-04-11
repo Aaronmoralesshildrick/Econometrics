@@ -1,0 +1,183 @@
+#PART 1
+# In the document
+
+
+#PART 2: Replication of FIG 8.
+
+fulldata <- read.csv("https://course-resources.minerva.kgi.edu/uploaded_files/mke/00086677-3767/peace.csv")
+names(fulldata)
+
+fulldata <- fulldata[, c(99, 50, 114, 49, 63, 136, 109, 126, 48, 160, 142, 10)]
+
+# remove 2 rows with missing data (there are better ways to handle missing data)
+fulldata <- fulldata[c(-19, -47), ]
+
+
+
+#according to data presented in the table
+glm1 <- glm(pbs2s3 ~ wartype + logcost + wardur + factnum +
+              factnum2 + trnsfcap + untype4 + treaty + develop +
+              exp + decade, data = fulldata, family = "binomial")
+summary(glm1)
+
+glm2 <- glm(pbs2s3 ~ wartype + logcost + wardur + factnum +
+              factnum2 + trnsfcap + untype4 + treaty + develop +
+              exp + decade + untype4*wardur, data = fulldata, family = "binomial")
+summary(glm2)
+
+meanlogcost = mean(fulldata$logcost)
+meanwartype = mean(fulldata$wartype)
+meanfactnum = mean(fulldata$factnum)
+meanfactnum2 = mean(fulldata$factnum2)
+meantrnsfcap = mean(fulldata$trnsfcap)
+meanuntype4 = mean(fulldata$untype4)
+meantreaty = mean(fulldata$treaty)
+meandevelop = mean(fulldata$develop)
+meanexp = mean(fulldata$exp)
+meandecade = mean(fulldata$decade)
+
+#Nested for loop that keeps valued at their medians and only age varies.
+control_effect=c()
+treatment_effect=c()
+names(fulldata)
+original=c()
+
+for(j in 1:315){
+  newdata_control=data.frame(meanwartype, meanlogcost, j, meanfactnum, meanfactnum2, meantrnsfcap,
+                     0, meantreaty, meandevelop, meanexp, meandecade)
+  newdata_treated=data.frame(meanwartype, meanlogcost, j, meanfactnum, meanfactnum2, meantrnsfcap,
+                             1, meantreaty, meandevelop, meanexp, meandecade)
+  names(newdata_control)=c("wartype",  "logcost" , "wardur",   "factnum" , "factnum2",
+                           "trnsfcap" ,"untype4" , "treaty"  , "develop",  "exp" , "decade")
+  names(newdata_treated)=c("wartype",  "logcost" , "wardur",   "factnum" , "factnum2",
+                           "trnsfcap" ,"untype4" , "treaty"  , "develop",  "exp" , "decade")
+  original[j] = mean(predict(glm1,newdata = newdata_treated, type="response")) -mean(predict(glm1,newdata = newdata_control, type="response"))
+}
+original
+
+original2=c()
+
+for(j in 1:315){
+  newdata_control=data.frame(meanwartype, meanlogcost, j, meanfactnum, meanfactnum2, meantrnsfcap,
+                             0, meantreaty, meandevelop, meanexp, meandecade)
+  newdata_treated=data.frame(meanwartype, meanlogcost, j, meanfactnum, meanfactnum2, meantrnsfcap,
+                             1, meantreaty, meandevelop, meanexp, meandecade)
+  names(newdata_control)=c("wartype",  "logcost" , "wardur",   "factnum" , "factnum2",
+                           "trnsfcap" ,"untype4" , "treaty"  , "develop",  "exp" , "decade")
+  names(newdata_treated)=c("wartype",  "logcost" , "wardur",   "factnum" , "factnum2",
+                           "trnsfcap" ,"untype4" , "treaty"  , "develop",  "exp" , "decade")
+  original2[j] = mean(predict(glm2,newdata = newdata_treated, type="response")) -mean(predict(glm2,newdata = newdata_control, type="response"))
+}
+original2
+
+par(cex.axis = 0.8)
+plot(x = 1:315, y = original, type= "line", lty = "dotted",
+     xlim = c(1 ,315),
+     ylim = c(0,0.8), 
+     main = "Causal Effect of Multidimensional UN Peacekeeping Operations", 
+     xlab = "Duration of wars in months", 
+     ylab = "Marginal effects of UN peacekeeping operations",
+     axes = FALSE)
+axis(side=1, at = seq(5,320,by=15))
+axis(2, at = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8))
+lines(x = 1:315, y = original2)
+box()
+axis(side=3, labels = FALSE, at = seq(5,320,by=15))
+axis(4, labels = FALSE, at = c(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8))
+text(95,0.1,"Model with Interaction Term",cex=1)
+text(245,0.3,"Dotted line: Original Model",cex=1)
+
+#PART 3
+# In the document
+
+
+# PART 4
+
+#import data
+foo <- read.csv("https://course-resources.minerva.kgi.edu/uploaded_files/mke/00086677-3767/peace.csv")
+library(Matching)
+names(foo)
+foo$pbs2l
+foo$pbs5l
+
+# Part A
+# What is the effect of UN peacekeeping interventions (any kind) on lenient success over 2 years
+# and over 5 years. 
+
+# Part B
+
+
+#Part C
+#logistic regression
+set.seed(3213)
+foo_glm2l <- glm(pbs2l ~ wartype + logcost + wardur + factnum + factnum2 +
+                 trnsfcap + treaty + develop + exp + decade + Tr, family = binomial, data = foo)
+summary(foo_glm2l)
+
+foo_glm5l <- glm(pbs5l ~ wartype + logcost + wardur + factnum + factnum2 +
+                   trnsfcap + treaty + develop + exp + decade + Tr, family = binomial, data = foo)
+summary(foo_glm5l)
+#Propesity score matching
+library(dplyr)
+
+foo <- select(foo, untype, wartype, logcost, wardur, factnum, factnum2,
+                trnsfcap, treaty, develop, exp, decade, pbs2l, pbs5l)
+foo = foo[complete.cases(foo),]
+
+Tr <- rep(0, length(foo$untype))
+Tr[which(foo$untype != "None")] <- 1
+
+foo = data.frame(foo, Tr)
+
+foo_glm <- glm(Tr ~ wartype + logcost + wardur + factnum + factnum2 +
+                 trnsfcap + treaty + develop + exp + decade, family = binomial, data = foo)
+
+
+mout_propensityscore <- Match(Tr=foo$Tr, X = foo_glm$fitted.values)
+
+mb_propensityscore <- MatchBalance(Tr ~ wartype + logcost + wardur + factnum + factnum2 +
+                                     trnsfcap + treaty + develop + exp + decade, 
+                                   data=foo, match.out = mout_propensityscore, nboots=500)
+
+#Add bias adjustment here
+set.seed(1)
+mout = Match(Y = foo$pbs2l, Tr=foo$Tr, X = foo_glm$fitted.values, BiasAdjust = TRUE)
+summary(mout)
+
+
+
+set.seed(1)
+mout2 = Match(Y = foo$pbs5l, Tr=foo$Tr, X = foo_glm$fitted.values, BiasAdjust = TRUE)
+summary(mout2)
+
+
+# Genetic Matching
+set.seed(1)
+X <- cbind(foo$wartype, foo$logcost, foo$wardur,
+                    foo$factnum, foo$factnum2, foo$trnsfcap,
+                    foo$treaty, foo$develop, foo$exp, foo$decade)
+
+genout <- GenMatch(Tr = Tr, X = X, BalanceMatrix = X,#Not necesary to include.It is the default
+                   pop.size = 200, estimand="ATT", M=1, wait.generations = 15)
+
+genmatchmout <- Match(Tr=Tr, X=X, estimand="ATT", Weight.matrix=genout)
+
+mb_genmatch <- MatchBalance(Tr ~ wartype + logcost + wardur + factnum +
+                              factnum2 + trnsfcap + treaty + develop + exp + decade, data = foo,
+                            match.out=genmatchmout, nboots=500)
+
+
+genmatch_mout <- Match(Y=foo$pbs2l, Tr=Tr, X=X, estimand="ATT", Weight.matrix=genout, BiasAdjust = TRUE)
+summary(genmatch_mout)
+
+mb_genmatch <- MatchBalance(Tr ~ wartype + logcost + wardur + factnum +
+                     factnum2 + trnsfcap + treaty + develop + exp + decade, data = foo,
+                   match.out=genmatch_mout, nboots=500)
+
+genmatch_mout_5 <- Match(Y=foo$pbs5l, Tr=Tr, X=X, estimand="ATT", Weight.matrix=genout, BiasAdjust = TRUE)
+summary(genmatch_mout_5)
+
+mb_genmatch <- MatchBalance(Tr ~ wartype + logcost + wardur + factnum +
+                              factnum2 + trnsfcap + treaty + develop + exp + decade, data = foo,
+                            match.out=genmatch_mout_5, nboots=500)
+
