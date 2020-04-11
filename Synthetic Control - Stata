@@ -1,0 +1,157 @@
+cd "/Users/aaron/Documents/Minerva/SS 154/Final Project"
+
+rename Pollutantemissionsfromtranspo temissions
+rename GDPperCapita GDPpc
+rename PurchasingPowerAdijustedGDPp PP
+rename PriceofGasolineinUSdollars Gasprice
+rename Renewableenergyshare Renewable
+
+line temissions Year if ID == 28
+line TotalCO2 Year if ID == 28
+
+
+
+ssc install synth, replace all
+tsset ID Year
+
+/* Because Greece, Iceland, Norway, and Switzerland don’t have data on transport emissions they are removed from the dataset. */
+drop if ID == 8
+drop if ID == 29
+drop if ID == 30
+drop if ID == 31
+
+
+/* UK Synth*/
+synth temissions Population GDPpc Gasprice Renewable temissions(1990) temissions(2001) temissions(2007), trunit(28) trperiod(2008) unitnames(Country) mspeperiod(2000(1)2007) resultsperiod(2000(1)2014) nested keep(temissionssynthUK) replace fig
+
+*Getting the Gap for the UK
+use temissionssynthUK, clear
+keep _Y_treated _Y_synthetic _time
+drop if _time==.
+rename _time year
+rename _Y_treated  treat
+rename _Y_synthetic counterfact
+gen gap28=treat-counterfact
+sort year 
+twoway (line gap28 year,lp(solid)lw(vthin)lcolor(black)), yline(0, lpattern(shortdash) lcolor(black)) xline(2008, lpattern(shortdash) lcolor(black)) xtitle("",si(medsmall)) xlabel(#10) ytitle("Gap in transport emissions prediction error", size(medsmall)) legend(off)
+save Synth-gap28, replace
+
+
+tsset ID Year
+#delimit;
+set more off;
+use Data, replace;
+tsset ID Year;
+
+
+local ID 1 2 3 4 5 6 7 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28;
+
+foreach i of local ID {;
+
+synth 	temissions 
+		Population GDPpc Gasprice Renewable temissions(1990) temissions(2001)        temissions(2007)
+		,		
+			trunit(`i') trperiod(2008) unitnames(Country)
+			mspeperiod(2000(1)2007) resultsperiod(2000(1)2014) nested
+			keep(temissionssynth_`i') replace;
+			matrix state`i' = e(RMSPE); /* check the V matrix*/
+            };
+
+#delimit cr
+
+local ID 1 2 3 4 5 6 7 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
+
+foreach i of local ID {
+ 	use temissionssynth_`i',clear
+ 	keep _Y_treated _Y_synthetic _time
+ 	drop if _time==.
+	rename _time year
+ 	rename _Y_treated  treat`i'
+ 	rename _Y_synthetic counterfact`i'
+ 	gen gap`i'=treat`i'-counterfact`i'
+ 	sort year 
+ 	save synth_gap_temissions`i', replace
+}
+
+use Synth-gap28, clear
+sort year
+save placebo_28.dta, replace
+
+foreach i of local ID {
+		
+		merge year using synth_gap_temissions`i'
+		drop _merge
+		sort year
+		
+	save Finalplacebo_temissions, replace
+}
+
+/* Messy Placebo graph*/
+#delimit;	
+
+twoway 
+(line gap1 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap2 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap3 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap4 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap5 year ,lp(solid)lw(vthin) lcolor(gs7))
+(line gap6 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap7 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap9 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap10 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap11 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap12 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap13 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap14 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap15 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap16 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap17 year ,lp(solid)lw(vthin) lcolor(gs7))
+(line gap18 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap19 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap20 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap21 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap22 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap23 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap24 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap25 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap26 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap27 year ,lp(solid)lw(vthin) lcolor(gs7))
+(line gap28 year ,lp(solid)lw(thick)lcolor(black)), /*treatment unit, UK*/
+yline(0, lpattern(shortdash) lcolor(black)) xline(2008, lpattern(shortdash) lcolor(black))
+xtitle("",si(small)) xlabel(#10) ytitle("Gap in Transport Emissions prediction error", size(small))
+	legend(off);
+
+#delimit cr
+
+/* Clean Placebo graph*/
+#delimit;	
+
+twoway 
+(line gap3 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap4 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap6 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap10 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap11 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap12 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap15 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap19 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap20 year ,lp(solid)lw(vthin) lcolor(gs7))  
+(line gap22 year ,lp(solid)lw(vthin) lcolor(gs7)) 
+(line gap27 year ,lp(solid)lw(vthin) lcolor(gs7))
+(line gap28 year ,lp(solid)lw(thick)lcolor(black)), /*treatment unit, UK*/
+yline(0, lpattern(shortdash) lcolor(black)) xline(2008, lpattern(shortdash) lcolor(black))
+xtitle("",si(small)) xlabel(#10) ytitle("Gap in Transport Emissions prediction error", size(small))
+	legend(off);
+
+#delimit cr
+
+
+
+/*Getting the Treatment Effect*/
+use Synth-gap28, clear 
+gen tr_effect= treat - counterfact
+drop if missing(year)
+gen diff_pre_treat = tr_effect if year < 2008
+gen diff_post_treat = tr_effect if year >= 2008
+
+regress diff_post_treat diff_pre_treat
